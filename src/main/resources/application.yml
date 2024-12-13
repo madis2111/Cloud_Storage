@@ -1,8 +1,8 @@
 spring:
-    datasource:
-      url: jdbc:mysql://sql5.freemysqlhosting.net:3306/sql5749161
-      username: sql5749161
-      password: PCcpRKWFvg
+  datasource:
+    url: jdbc:mysql://sql5.freemysqlhosting.net:3306/sql5749161
+    username: sql5749161
+    password: PCcpRKWFvg
 
 jpa:
   hibernate:

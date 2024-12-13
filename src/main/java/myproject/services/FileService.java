@@ -1,7 +1,8 @@
 package myproject.services;
 
+import com.google.gson.Gson;
+import myproject.entities.FileInfo;
 import myproject.repositories.FileRepository;
-import myproject.entities.File;
 import myproject.entities.NamedFile;
 import myproject.exceptions.CRUDException;
 import myproject.exceptions.FileExistsException;
@@ -9,8 +10,13 @@ import myproject.exceptions.InputDataException;
 import myproject.exceptions.NoSuchFilenameException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,18 +29,7 @@ public class FileService {
         this.fileRepository = fileRepository;
     }
 
-    public void uploadFile(File file, String filename) throws FileExistsException {
-
-        if (fileRepository.existsById(filename)) {
-            throw new FileExistsException();
-        }
-
-        NamedFile namedFile = new NamedFile(file, filename);
-        fileRepository.save(namedFile);
-
-    }
-
-    public File getFile(String filename) throws NoSuchFilenameException, CRUDException {
+    public MultiValueMap getFile(String filename) throws NoSuchFilenameException, CRUDException {
 
 
         if (!fileRepository.existsById(filename)) {
@@ -47,15 +42,23 @@ public class FileService {
             throw new CRUDException();
         }
 
-            NamedFile namedFile = namedFileOptional.get();
+        NamedFile namedFile = namedFileOptional.get();
 
-        File file = new File(namedFile.getHash(), namedFile.getFile());
-        return file;
+        MultipartBodyBuilder builder = new MultipartBodyBuilder();
+
+        builder.part("metadata", String.format(
+                "{ \"hash\": \"%s\" }",
+                namedFile.getHash()
+        )).header(HttpHeaders.CONTENT_TYPE, "application/json");
+
+        builder.part("file", namedFile.getFileContent())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "form-data; name=file");
+
+        return builder.build();
     }
 
-    public void deleteFile(String filename) throws NoSuchFilenameException,
-                                                    CRUDException {
 
+    public void deleteFile(String filename) throws NoSuchFilenameException, CRUDException {
 
         if (!fileRepository.existsById(filename)) {
             throw new NoSuchFilenameException();
@@ -68,39 +71,46 @@ public class FileService {
         }
     }
 
-    public void putFile(File file, String filename) throws NoSuchFilenameException, CRUDException {
+    public void uploadFile(String hash, MultipartFile multipartFile, String filename) throws FileExistsException, IOException {
+
+        if (fileRepository.existsById(filename)) {
+            throw new FileExistsException();
+        }
+
+        NamedFile namedFile = new NamedFile(hash, multipartFile.getBytes(), filename);
+        fileRepository.save(namedFile);
+
+    }
+
+    public void putFile(String hash, MultipartFile multipartFile, String filename) throws NoSuchFilenameException, CRUDException, IOException {
 
         if (!fileRepository.existsById(filename)) {
             throw new NoSuchFilenameException();
         }
 
-        NamedFile namedFile = new NamedFile(file,filename);
+        NamedFile namedFile = new NamedFile(hash, multipartFile.getBytes(), filename);
         fileRepository.save(namedFile);
 
         Optional<NamedFile> savedFileOptional = fileRepository.findById(filename);
         if (savedFileOptional.isEmpty() ||
-            !savedFileOptional.get().equals(namedFile)) {
+                !savedFileOptional.get().equals(namedFile)) {
             throw new CRUDException();
         }
     }
 
-    public List<File> getAll(int limit) throws CRUDException, InputDataException {
+    public String getAllAsJsonList(int limit) throws CRUDException, InputDataException {
 
         if (limit == 0) {
             throw new InputDataException();
         }
 
-        Page<NamedFile> namedFilesPage = fileRepository.findAll(PageRequest.of(0,limit));
+        Page<NamedFile> namedFilesPage = fileRepository.findAll(PageRequest.of(0, limit));
         List<NamedFile> namedFiles = namedFilesPage.getContent();
-        List<File> files = namedFiles
-                                .stream()
-                                .map(namedFile -> new File(namedFile.getHash(), namedFile.getFile()))
-                                .toList();
+        List<FileInfo> fileInfos = namedFiles.stream()
+                .map(namedFile -> namedFile.getFileInfo())
+                .toList();
 
-        if (files == null) {
-            throw new CRUDException();
-        }
 
-        return files;
+        return new Gson().toJson(fileInfos);
     }
 }

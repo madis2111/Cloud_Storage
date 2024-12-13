@@ -1,10 +1,7 @@
 package myproject.services;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 
-import java.security.Key;
 import java.util.ArrayList;
 import java.util.Date;
 

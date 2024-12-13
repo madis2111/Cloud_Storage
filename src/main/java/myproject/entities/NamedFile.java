@@ -14,20 +14,21 @@ public class NamedFile {
     @Column(name = "hash")
     private String hash;
     @Column(name = "file")
-    private String file;
+    private byte[] file;
 
     public NamedFile() {}
 
-    public NamedFile(File file, String filename) {
-        this.hash = file.getHash();
-        this.file = file.getFile();
-        this.filename = filename;
-    }
-
-    public NamedFile(String hash, String file, String filename) {
+    public NamedFile(String hash, byte[] fileBytes, String filename) {
         this.hash = hash;
-        this.file = file;
+        this.file = fileBytes;
         this.filename = filename;
     }
 
+    public byte[] getFileContent() {
+        return file;
+    }
+
+    public FileInfo getFileInfo() {
+        return new FileInfo(filename, file.length);
+    }
 }

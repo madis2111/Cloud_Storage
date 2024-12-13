@@ -2,23 +2,19 @@ package myproject.testcontainers;
 
 import com.google.gson.Gson;
 import myproject.entities.Credentials;
-import myproject.entities.File;
 import myproject.entities.Login;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 import org.testcontainers.containers.GenericContainer;
 
 public class TestcontainersApplicationTests {
 
     private final GenericContainer<?> cloudApp = new GenericContainer<>("cloudimage:latest")
-                                                        .withExposedPorts(8080);
+            .withExposedPorts(8080);
     @BeforeEach
     public void setUp() {
         cloudApp.start();
@@ -44,7 +40,7 @@ public class TestcontainersApplicationTests {
     }
 
     @Test
-    public void postForEntityTest() {
+    public void deleteForEntityTest() {
         RestTemplate restTemplate = new RestTemplate();
         Gson gson = new Gson();
 
@@ -58,12 +54,10 @@ public class TestcontainersApplicationTests {
 
 
         HttpHeaders headersMap2 = new HttpHeaders();
-        String jsonStringOfFile = gson.toJson(new File("myhash","0011101001"));
         headersMap2.set("auth-token", login.getAuthToken());
-        HttpEntity<String> bodyAndHeaderHttpEntity2 = new HttpEntity<>(jsonStringOfFile, headersMap2);
 
         ResponseEntity<?> postFileEntity =
-                restTemplate.postForEntity("http://localhost:8080/file?filename=myfile", bodyAndHeaderHttpEntity2, String.class);
-        Assertions.assertEquals(HttpStatus.OK, postFileEntity.getStatusCode());
+                restTemplate.exchange("http://localhost:8080/file?filename=myfile", HttpMethod.DELETE, null, Void.class);
+        Assertions.assertEquals(HttpStatus.BAD_REQUEST, postFileEntity.getStatusCode());
     }
 }

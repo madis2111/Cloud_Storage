@@ -1,9 +1,6 @@
 package myproject.controllers;
 
-import myproject.entities.Credentials;
 import myproject.entities.Error;
-import myproject.entities.File;
-import myproject.entities.Login;
 import myproject.exceptions.CRUDException;
 import myproject.exceptions.FileExistsException;
 import myproject.exceptions.InputDataException;
@@ -13,6 +10,9 @@ import myproject.services.FileService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 public class FileController {
@@ -23,37 +23,18 @@ public class FileController {
         this.fileService = fileService;
     }
 
-    @PostMapping("login")
-    public ResponseEntity<?> login(@RequestBody Credentials credentials) {
-            String token = JwtService.generateToken(credentials.getLogin());
-            Login login = new Login(token);
-            String json = login.toString();
-            return new ResponseEntity<>(json, HttpStatus.OK);
-    }
-
-    @PostMapping("logout")
-    public ResponseEntity<?> logout(@RequestHeader("auth-token") String token) {
-        if (!JwtService.tokenValid(token)) {
-            return new ResponseEntity<>(new Error("Incorrect token",401), HttpStatus.UNAUTHORIZED);
-        }
-
-        JwtService.invalidateToken(token);
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-
     @PostMapping("file")
-    public ResponseEntity<?> uploadFile(@RequestBody File file, @RequestParam("filename") String filename, @RequestHeader("auth-token") String token) {
+    public ResponseEntity<?> uploadFile(@RequestPart("hash") String hash, @RequestPart("file") MultipartFile file, @RequestParam("filename") String filename, @RequestHeader("auth-token") String token) {
 
         if (!JwtService.tokenValid(token)) {
-            return new ResponseEntity<>(new Error("Incorrect token",401), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(new Error("Incorrect token", 401), HttpStatus.UNAUTHORIZED);
         }
 
         try {
-            fileService.uploadFile(file, filename);
+            fileService.uploadFile(hash, file, filename);
             return new ResponseEntity<>(HttpStatus.OK);
-        } catch (FileExistsException e) {
-            return new ResponseEntity<>(new Error("Error input data",400), HttpStatus.BAD_REQUEST);
+        } catch (FileExistsException | IOException e) {
+            return new ResponseEntity<>(new Error("Error input data", 400), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -61,12 +42,11 @@ public class FileController {
     public ResponseEntity<?> getFile(@RequestParam("filename") String filename, @RequestHeader("auth-token") String token) {
 
         if (!JwtService.tokenValid(token)) {
-            return new ResponseEntity<>(new Error("Incorrect token",401), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(new Error("Incorrect token", 401), HttpStatus.UNAUTHORIZED);
         }
 
         try {
-            File file = fileService.getFile(filename);
-            return new ResponseEntity<>(file, HttpStatus.OK);
+            return new ResponseEntity<>(fileService.getFile(filename), HttpStatus.OK);
         } catch (NoSuchFilenameException e) {
             Error error = new Error("No such filename", 400);
             return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
@@ -80,7 +60,7 @@ public class FileController {
     public ResponseEntity<?> deleteFile(@RequestParam("filename") String filename, @RequestHeader("auth-token") String token) {
 
         if (!JwtService.tokenValid(token)) {
-            return new ResponseEntity<>(new Error("Incorrect token",401), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(new Error("Incorrect token", 401), HttpStatus.UNAUTHORIZED);
         }
 
         try {
@@ -96,17 +76,17 @@ public class FileController {
     }
 
     @PutMapping("file")
-    public ResponseEntity<?> putFile(@RequestParam("filename") String filename, @RequestBody File file, @RequestHeader("auth-token") String token) {
+    public ResponseEntity<?> putFile(@RequestParam("filename") String filename, @RequestPart("hash") String hash, @RequestPart("file") MultipartFile file, @RequestHeader("auth-token") String token) {
 
         if (!JwtService.tokenValid(token)) {
-            return new ResponseEntity<>(new Error("Incorrect token",401), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(new Error("Incorrect token", 401), HttpStatus.UNAUTHORIZED);
         }
 
         try {
-            fileService.putFile(file, filename);
+            fileService.putFile(hash, file, filename);
             return new ResponseEntity<>(HttpStatus.OK);
-        } catch (NoSuchFilenameException e) {
-            Error error = new Error("No such filename", 400);
+        } catch (NoSuchFilenameException | IOException e) {
+            Error error = new Error("Error input data", 400);
             return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
         } catch (CRUDException e) {
             Error error = new Error("Failed to edit file", 500);
@@ -118,11 +98,11 @@ public class FileController {
     public ResponseEntity<?> getAll(@RequestParam("limit") int limit, @RequestHeader("auth-token") String token) {
 
         if (!JwtService.tokenValid(token)) {
-            return new ResponseEntity<>(new Error("Incorrect token",401), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(new Error("Incorrect token", 401), HttpStatus.UNAUTHORIZED);
         }
 
         try {
-            return new ResponseEntity<>(fileService.getAll(limit), HttpStatus.OK);
+            return new ResponseEntity<>(fileService.getAllAsJsonList(limit), HttpStatus.OK);
         } catch (InputDataException e) {
             Error error = new Error("Input data exception", 400);
             return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
